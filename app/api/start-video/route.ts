@@ -1,53 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
-// Default model: minimax/video-01
+// Default model: minimax/video-01 (text-to-video)
 // Override via REPLICATE_VIDEO_MODEL env var
-// Other options: 'lucataco/kling-v1.6-standard-image-to-video', 'wavespeedai/wan-2.1-i2v-480p'
+// Other options: 'wavespeedai/wan-2.1-i2v-480p'
 const VIDEO_MODEL = process.env.REPLICATE_VIDEO_MODEL || 'minimax/video-01'
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageDataUrl, prompt, duration } = await req.json()
+    const { prompt, duration } = await req.json()
 
     console.log('Received prompt:', prompt?.substring(0, 100))
-    console.log('Has image:', !!imageDataUrl)
 
-    if (!imageDataUrl || !prompt) {
-      return NextResponse.json({ error: 'Missing imageDataUrl or prompt' }, { status: 400 })
+    if (!prompt) {
+      return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
     }
 
-    // Build model-specific input
-    // minimax/video-01 uses first_frame_image + prompt_text
-    // Most other models use image + prompt
+    // Build model-specific input (text-to-video)
     let input: Record<string, unknown>
     if (VIDEO_MODEL.includes('minimax/video-01')) {
       input = {
-        prompt: prompt,
         prompt_text: prompt,
-        first_frame_image: imageDataUrl,
         prompt_optimizer: true,
-      }
-    } else if (VIDEO_MODEL.includes('kling')) {
-      input = {
-        image: imageDataUrl,
-        prompt: prompt,
-        duration: 5,
-        aspect_ratio: '16:9',
       }
     } else if (VIDEO_MODEL.includes('wan')) {
       input = {
-        image: imageDataUrl,
-        prompt: prompt + ', dynamic motion, cinematic movement, no static frames',
-        negative_prompt: 'static, frozen, no movement, photograph',
+        prompt: prompt,
+        negative_prompt: 'static, blurry, low quality, watermark',
+        num_frames: 81,
+        resolution: '480p',
       }
     } else {
       // Generic fallback
       input = {
         prompt,
-        image: imageDataUrl,
         duration: Math.min(Math.round(duration || 8), 10),
       }
     }

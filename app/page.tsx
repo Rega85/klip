@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { parseLyrics, assignTimestamps, buildClipList } from '@/lib/parse-lyrics'
-import type { LyricsSection, VideoClip, SectionType } from '@/lib/types'
+import type { LyricsSection, VideoClip } from '@/lib/types'
 
-type Step = 1 | 2 | 3 | 4
+type Step = 1 | 3 | 4
 
 const BADGE: Record<string, string> = {
   chorus: 'badge-chorus',
@@ -16,21 +16,10 @@ const BADGE: Record<string, string> = {
   other: 'badge-other',
 }
 
-function genId() { return Math.random().toString(36).substr(2, 9) }
-
 function fmt(s: number) {
   const m = Math.floor(s / 60)
   const sec = Math.floor(s % 60)
   return `${m}:${sec.toString().padStart(2, '0')}`
-}
-
-function uniqueTypes(sections: LyricsSection[]): SectionType[] {
-  const seen = new Set<SectionType>()
-  const out: SectionType[] = []
-  for (const s of sections) {
-    if (!seen.has(s.type)) { seen.add(s.type); out.push(s.type) }
-  }
-  return out
 }
 
 async function pollAllClips(
@@ -314,8 +303,6 @@ export default function Home() {
   const [sections, setSections] = useState<LyricsSection[]>([])
   const [isDragging, setIsDragging] = useState(false)
 
-  // Step 2
-  const [typeImages, setTypeImages] = useState<Record<string, string>>({})
 
   // Step 3
   const [clips, setClips] = useState<VideoClip[]>([])
@@ -347,12 +334,6 @@ export default function Home() {
     const parsed = parseLyrics(lyricsText)
     const withTimes = assignTimestamps(parsed as LyricsSection[], audioDuration)
     setSections(withTimes)
-  }
-
-  const handleTypeImage = (type: string, file: File) => {
-    const reader = new FileReader()
-    reader.onload = e => setTypeImages(prev => ({ ...prev, [type]: e.target?.result as string }))
-    reader.readAsDataURL(file)
   }
 
   const startGeneration = async () => {
@@ -394,22 +375,14 @@ export default function Home() {
 
         const clip = clipList[i]
         const section = sections.find(s => s.id === clip.sectionId)!
-        const imageDataUrl = typeImages[section.type]
         const prompt = promptMap[section.id] || `Cinematic ${section.type} music video shot, atmospheric and emotional`
 
         addLog(`▸ Spouštím klip ${i + 1}/${clipList.length}: "${section.label}" #${clip.clipIndex + 1}`)
 
-        if (!imageDataUrl) {
-          addLog(`⚠️ "${section.label}" nemá obrázek — přeskakuji`)
-          startedClips[i] = { ...clip, status: 'failed' as const, error: 'Chybí obrázek' }
-          setClips([...startedClips])
-          continue
-        }
-
         const res = await fetch('/api/start-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageDataUrl, prompt, duration: Math.max(5, Math.round(clip.duration)) }),
+          body: JSON.stringify({ prompt, duration: Math.max(5, Math.round(clip.duration)) }),
         })
         const data = await res.json()
 
@@ -454,8 +427,8 @@ export default function Home() {
           </div>
           {/* Step pills */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-            {(['01 UPLOAD', '02 OBRÁZKY', '03 GENEROVÁNÍ', '04 EXPORT'] as const).map((label, i) => {
-              const n = (i + 1) as Step
+            {(['01 UPLOAD', '02 GENEROVÁNÍ', '03 EXPORT'] as const).map((label, i) => {
+              const n = ([1, 3, 4] as Step[])[i]
               const active = step === n
               const done = step > n
               return (
@@ -596,87 +569,10 @@ export default function Home() {
               <button
                 className="btn-primary"
                 disabled={!audioFile || sections.length === 0}
-                onClick={() => setStep(2)}
-              >
-                Přiřadit obrázky →
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* ── STEP 2 ── */}
-        {step === 2 && (
-          <section>
-            <h2 className="font-display" style={{ fontSize: 42, marginBottom: 6, letterSpacing: '0.05em' }}>
-              OBRÁZKY SEKCÍ
-            </h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 40, fontSize: 14 }}>
-              Jeden referenční obrázek na typ sekce — bude použit jako první frame videoclipu.
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-              {uniqueTypes(sections).map(type => {
-                const count = sections.filter(s => s.type === type).length
-                return (
-                  <div key={type}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <span className={`section-badge ${BADGE[type] || 'badge-other'}`}>{type}</span>
-                      <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{count}× v písni</span>
-                    </div>
-                    <div
-                      className="card"
-                      onClick={() => document.getElementById(`img-${type}`)?.click()}
-                      style={{
-                        aspectRatio: '16/9',
-                        cursor: 'pointer',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        borderColor: typeImages[type] ? '#22c55e55' : 'var(--border)',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <input
-                        id={`img-${type}`}
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        onChange={e => { const f = e.target.files?.[0]; if (f) handleTypeImage(type, f) }}
-                      />
-                      {typeImages[type] ? (
-                        <img
-                          src={typeImages[type]}
-                          alt={type}
-                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{ textAlign: 'center', padding: 16 }}>
-                          <div style={{ fontSize: 32, opacity: 0.15, marginBottom: 8 }}>🖼</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Klikni pro upload</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>JPG, PNG, WebP</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {uniqueTypes(sections).some(t => !typeImages[t]) && (
-              <p style={{ marginTop: 20, fontSize: 13, color: 'var(--text-muted)' }}>
-                ⚠️ Nahrej obrázek pro každý typ sekce před generováním.
-              </p>
-            )}
-
-            <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button className="btn-ghost" onClick={() => setStep(1)}>← Zpět</button>
-              <button
-                className="btn-primary"
-                disabled={uniqueTypes(sections).some(t => !typeImages[t])}
                 onClick={startGeneration}
                 style={{ fontSize: 15 }}
               >
-                🎬 Spustit generování →
+                Spustit generování →
               </button>
             </div>
           </section>
@@ -758,7 +654,7 @@ export default function Home() {
         {/* ── STEP 4 ── */}
         {step === 4 && (<>
           <div style={{ marginBottom: 32 }}>
-            <button className="btn-ghost" onClick={() => { setStep(1); setClips([]); setSections([]); setLyricsText(''); setAudioFile(null); setAudioDataUrl(''); setAudioDuration(0); setSongTitle(''); setGenre(''); setTypeImages({}); setLog([]); }}>
+            <button className="btn-ghost" onClick={() => { setStep(1); setClips([]); setSections([]); setLyricsText(''); setAudioFile(null); setAudioDataUrl(''); setAudioDuration(0); setSongTitle(''); setGenre(''); setLog([]); }}>
               ← Začít znovu
             </button>
           </div>
