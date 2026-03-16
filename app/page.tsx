@@ -377,34 +377,56 @@ export default function Home() {
         if (section) promptMap[section.id] = p.prompt
       }
 
-      addLog(`✓ Prompty vygenerovány. Spouštím ${clipList.length} clipů paralelně...`)
+      addLog(`✓ Prompty vygenerovány. Spouštím ${clipList.length} clipů (max 5 najednou)...`)
 
-      const startedClips: VideoClip[] = await Promise.all(
-        clipList.map(async (clip) => {
-          const section = sections.find(s => s.id === clip.sectionId)!
-          const imageDataUrl = typeImages[section.type]
-          const prompt = promptMap[section.id] || `Cinematic ${section.type} music video shot, atmospheric and emotional`
+      // Queue clips in batches of 5 with 2s delay between batches
+      const BATCH_SIZE = 5
+      const BATCH_DELAY = 2000
+      const startedClips: VideoClip[] = [...clipList]
 
-          if (!imageDataUrl) {
-            addLog(`⚠️ "${section.label}" nemá obrázek — přeskakuji`)
-            return { ...clip, status: 'failed' as const, error: 'Chybí obrázek' }
-          }
+      for (let batchStart = 0; batchStart < clipList.length; batchStart += BATCH_SIZE) {
+        if (batchStart > 0) {
+          addLog(`⏳ Čekám 2s před další dávkou...`)
+          await new Promise(r => setTimeout(r, BATCH_DELAY))
+        }
 
-          const res = await fetch('/api/start-video', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageDataUrl, prompt, duration: Math.max(5, Math.round(clip.duration)) }),
+        const batch = clipList.slice(batchStart, batchStart + BATCH_SIZE)
+        addLog(`▸ Dávka ${Math.floor(batchStart / BATCH_SIZE) + 1}: spouštím ${batch.length} clipů`)
+
+        const results = await Promise.all(
+          batch.map(async (clip) => {
+            const section = sections.find(s => s.id === clip.sectionId)!
+            const imageDataUrl = typeImages[section.type]
+            const prompt = promptMap[section.id] || `Cinematic ${section.type} music video shot, atmospheric and emotional`
+
+            if (!imageDataUrl) {
+              addLog(`⚠️ "${section.label}" nemá obrázek — přeskakuji`)
+              return { ...clip, status: 'failed' as const, error: 'Chybí obrázek' }
+            }
+
+            const res = await fetch('/api/start-video', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageDataUrl, prompt, duration: Math.max(5, Math.round(clip.duration)) }),
+            })
+            const data = await res.json()
+
+            if (data.predictionId) {
+              addLog(`▶ "${section.label}" #${clip.clipIndex + 1} — spuštěn`)
+              return { ...clip, predictionId: data.predictionId, status: 'starting' as const }
+            }
+            addLog(`✗ "${section.label}" #${clip.clipIndex + 1} — chyba spouštění`)
+            return { ...clip, status: 'failed' as const, error: data.error || 'Start failed' }
           })
-          const data = await res.json()
+        )
 
-          if (data.predictionId) {
-            addLog(`▶ "${section.label}" #${clip.clipIndex + 1} — spuštěn`)
-            return { ...clip, predictionId: data.predictionId, status: 'starting' as const }
-          }
-          addLog(`✗ "${section.label}" #${clip.clipIndex + 1} — chyba spouštění`)
-          return { ...clip, status: 'failed' as const, error: data.error || 'Start failed' }
-        })
-      )
+        // Merge batch results into startedClips
+        for (const result of results) {
+          const idx = startedClips.findIndex(c => c.id === result.id)
+          if (idx !== -1) startedClips[idx] = result
+        }
+        setClips([...startedClips])
+      }
 
       setClips(startedClips)
       addLog(`${startedClips.filter(c => c.predictionId).length}/${clipList.length} clipů spuštěno. Čekám...`)
