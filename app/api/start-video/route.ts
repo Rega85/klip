@@ -30,8 +30,11 @@ export async function POST(req: NextRequest) {
         prompt: prompt,
         negative_prompt: 'static, blurry, low quality, watermark',
         num_frames: 81,
-        resolution: '480p',
+        sample_steps: 30,
+        guide_scale: 6,
+        seed: -1,
       }
+      console.log('Wan input:', JSON.stringify(input))
     } else {
       // Generic fallback
       input = {
