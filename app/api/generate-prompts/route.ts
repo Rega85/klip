@@ -4,6 +4,9 @@ export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('API Key exists:', !!process.env.ANTHROPIC_API_KEY)
+    console.log('API Key prefix:', process.env.ANTHROPIC_API_KEY?.substring(0, 10))
+
     const { sections, songTitle, genre } = await req.json()
 
     const sectionsText = sections
