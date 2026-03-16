@@ -46,10 +46,19 @@ Respond ONLY with valid JSON, no markdown, no preamble:
       }),
     })
 
+    if (!res.ok) {
+      const errBody = await res.text()
+      console.error('Anthropic API error:', res.status, errBody)
+      return NextResponse.json({ error: errBody }, { status: 500 })
+    }
     const message = await res.json()
+    if (!message.content?.[0]?.text) {
+      console.error('Unexpected response:', JSON.stringify(message))
+      return NextResponse.json({ error: 'No content in response' }, { status: 500 })
+    }
     const raw = message.content[0].text
-    const data = JSON.parse(raw)
-
+    const clean = raw.replace(/```json|```/g, '').trim()
+    const data = JSON.parse(clean)
     return NextResponse.json(data)
   } catch (err) {
     console.error('Full error:', JSON.stringify(err, null, 2))
