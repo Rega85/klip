@@ -12,6 +12,9 @@ export async function POST(req: NextRequest) {
   try {
     const { imageDataUrl, prompt, duration } = await req.json()
 
+    console.log('Received prompt:', prompt?.substring(0, 100))
+    console.log('Has image:', !!imageDataUrl)
+
     if (!imageDataUrl || !prompt) {
       return NextResponse.json({ error: 'Missing imageDataUrl or prompt' }, { status: 400 })
     }
@@ -37,6 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('Replicate request:', JSON.stringify({ model: VIDEO_MODEL, input }, null, 2))
+    console.log('Sending to Replicate, input:', JSON.stringify(input))
 
     const res = await fetch(`https://api.replicate.com/v1/models/${VIDEO_MODEL}/predictions`, {
       method: 'POST',
