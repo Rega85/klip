@@ -104,7 +104,7 @@ function Step4Export({
 
       const ffmpeg = new FFmpeg()
 
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm'
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
       await ffmpeg.load({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
         wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -149,7 +149,10 @@ function Step4Export({
       setFinalUrl(URL.createObjectURL(blob))
       setProgress('')
     } catch (e: any) {
-      setError(`FFmpeg chyba: ${e.message}. Zkus stáhnout ZIP clipů níže.`)
+      console.error('FFmpeg error object:', e)
+      console.error('FFmpeg error message:', e?.message)
+      console.error('FFmpeg error stack:', e?.stack)
+      setError(`FFmpeg chyba: ${e?.message || String(e)}. Zkus stáhnout ZIP clipů níže.`)
     } finally {
       setIsStitching(false)
     }
