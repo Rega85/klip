@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-export const maxDuration = 60;
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,11 +12,17 @@ export async function POST(req: NextRequest) {
       )
       .join('\n\n')
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [
-        {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{
           role: 'user',
           content: `You are a music video director. Generate cinematic video prompts for each section of a song.
 
@@ -38,17 +41,13 @@ Rules:
 - Make each section visually DISTINCT from others
 
 Respond ONLY with valid JSON, no markdown, no preamble:
-{
-  "prompts": [
-    {"label": "Section Label", "prompt": "cinematic prompt here"},
-    ...
-  ]
-}`,
-        },
-      ],
+{"prompts": [{"label": "Section Label", "prompt": "cinematic prompt here"}]}`
+        }],
+      }),
     })
 
-    const raw = (message.content[0] as { text: string }).text
+    const message = await res.json()
+    const raw = message.content[0].text
     const data = JSON.parse(raw)
 
     return NextResponse.json(data)
