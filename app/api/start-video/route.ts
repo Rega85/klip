@@ -6,6 +6,8 @@ const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
 // Other options: 'lucataco/kling-v1.6-standard-image-to-video', 'wavespeedai/wan-2.1-i2v-480p'
 const VIDEO_MODEL = process.env.REPLICATE_VIDEO_MODEL || 'minimax/video-01'
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { imageDataUrl, prompt, duration } = await req.json()

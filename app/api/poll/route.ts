@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN!
 
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
