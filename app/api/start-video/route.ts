@@ -30,8 +30,15 @@ export async function POST(req: NextRequest) {
         first_frame_image: imageDataUrl,
         prompt_optimizer: true,
       }
+    } else if (VIDEO_MODEL.includes('kling')) {
+      input = {
+        image: imageDataUrl,
+        prompt: prompt,
+        duration: 5,
+        aspect_ratio: '16:9',
+      }
     } else {
-      // Generic fallback for Kling, Wan, etc.
+      // Generic fallback for Wan, etc.
       input = {
         prompt,
         image: imageDataUrl,
