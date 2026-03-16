@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     let input: Record<string, unknown>
     if (VIDEO_MODEL.includes('minimax/video-01')) {
       input = {
+        prompt: prompt,
         prompt_text: prompt,
         first_frame_image: imageDataUrl,
         prompt_optimizer: true,
@@ -34,6 +35,8 @@ export async function POST(req: NextRequest) {
         duration: Math.min(Math.round(duration || 8), 10),
       }
     }
+
+    console.log('Replicate request:', JSON.stringify({ model: VIDEO_MODEL, input }, null, 2))
 
     const res = await fetch(`https://api.replicate.com/v1/models/${VIDEO_MODEL}/predictions`, {
       method: 'POST',
