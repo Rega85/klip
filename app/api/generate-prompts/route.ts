@@ -52,7 +52,8 @@ Respond ONLY with valid JSON, no markdown, no preamble:
 
     return NextResponse.json(data)
   } catch (err) {
-    console.error(err)
+    console.error('Full error:', JSON.stringify(err, null, 2))
+    console.error('Error message:', err instanceof Error ? err.message : String(err))
     return NextResponse.json({ error: 'Failed to generate prompts' }, { status: 500 })
   }
 }
