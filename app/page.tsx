@@ -145,7 +145,7 @@ function Step4Export({
 
       setProgress('Finalizuji...')
       const out = await ffmpeg.readFile('final.mp4')
-      const blob = new Blob([out as ArrayBuffer], { type: 'video/mp4' })
+      const blob = new Blob([out as unknown as ArrayBuffer], { type: 'video/mp4' })
       setFinalUrl(URL.createObjectURL(blob))
       setProgress('')
     } catch (e: any) {
