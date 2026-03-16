@@ -739,14 +739,19 @@ export default function Home() {
         )}
 
         {/* ── STEP 4 ── */}
-        {step === 4 && (
+        {step === 4 && (<>
+          <div style={{ marginBottom: 32 }}>
+            <button className="btn-ghost" onClick={() => { setStep(1); setClips([]); setSections([]); setLyricsText(''); setAudioFile(null); setAudioDataUrl(''); setAudioDuration(0); setSongTitle(''); setGenre(''); setTypeImages({}); setLog([]); }}>
+              ← Začít znovu
+            </button>
+          </div>
           <Step4Export
             clips={clips}
             audioDataUrl={audioDataUrl}
             audioDuration={audioDuration}
             songTitle={songTitle}
           />
-        )}
+        </>)}
       </main>
     </div>
   )
