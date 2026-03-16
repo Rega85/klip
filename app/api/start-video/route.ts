@@ -29,7 +29,10 @@ export async function POST(req: NextRequest) {
       input = {
         prompt: prompt,
         negative_prompt: 'static, blurry, low quality, watermark, text',
-        num_frames: 81,
+        aspect_ratio: '16:9',
+        sample_steps: 30,
+        sample_guide_scale: 5,
+        fast_mode: 'Balanced',
       }
       console.log('Wan input:', JSON.stringify(input))
     } else {
