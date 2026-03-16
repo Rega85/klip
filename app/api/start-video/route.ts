@@ -37,8 +37,14 @@ export async function POST(req: NextRequest) {
         duration: 5,
         aspect_ratio: '16:9',
       }
+    } else if (VIDEO_MODEL.includes('wan')) {
+      input = {
+        image: imageDataUrl,
+        prompt: prompt + ', dynamic motion, cinematic movement, no static frames',
+        negative_prompt: 'static, frozen, no movement, photograph',
+      }
     } else {
-      // Generic fallback for Wan, etc.
+      // Generic fallback
       input = {
         prompt,
         image: imageDataUrl,

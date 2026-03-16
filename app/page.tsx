@@ -383,7 +383,7 @@ export default function Home() {
       addLog(`✓ Prompty vygenerovány. Spouštím ${clipList.length} clipů postupně (12s mezi každým)...`)
 
       // Send clips one at a time with 12s delay between each
-      const CLIP_DELAY = 12000
+      const CLIP_DELAY = 15000
       const startedClips: VideoClip[] = [...clipList]
 
       for (let i = 0; i < clipList.length; i++) {
