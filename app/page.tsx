@@ -377,53 +377,45 @@ export default function Home() {
         if (section) promptMap[section.id] = p.prompt
       }
 
-      addLog(`✓ Prompty vygenerovány. Spouštím ${clipList.length} clipů (max 5 najednou)...`)
+      addLog(`✓ Prompty vygenerovány. Spouštím ${clipList.length} clipů postupně (12s mezi každým)...`)
 
-      // Queue clips in batches of 5 with 2s delay between batches
-      const BATCH_SIZE = 5
-      const BATCH_DELAY = 2000
+      // Send clips one at a time with 12s delay between each
+      const CLIP_DELAY = 12000
       const startedClips: VideoClip[] = [...clipList]
 
-      for (let batchStart = 0; batchStart < clipList.length; batchStart += BATCH_SIZE) {
-        if (batchStart > 0) {
-          addLog(`⏳ Čekám 2s před další dávkou...`)
-          await new Promise(r => setTimeout(r, BATCH_DELAY))
+      for (let i = 0; i < clipList.length; i++) {
+        if (i > 0) {
+          addLog(`⏳ Čekám 12s před dalším klipem...`)
+          await new Promise(r => setTimeout(r, CLIP_DELAY))
         }
 
-        const batch = clipList.slice(batchStart, batchStart + BATCH_SIZE)
-        addLog(`▸ Dávka ${Math.floor(batchStart / BATCH_SIZE) + 1}: spouštím ${batch.length} clipů`)
+        const clip = clipList[i]
+        const section = sections.find(s => s.id === clip.sectionId)!
+        const imageDataUrl = typeImages[section.type]
+        const prompt = promptMap[section.id] || `Cinematic ${section.type} music video shot, atmospheric and emotional`
 
-        const results = await Promise.all(
-          batch.map(async (clip) => {
-            const section = sections.find(s => s.id === clip.sectionId)!
-            const imageDataUrl = typeImages[section.type]
-            const prompt = promptMap[section.id] || `Cinematic ${section.type} music video shot, atmospheric and emotional`
+        addLog(`▸ Spouštím klip ${i + 1}/${clipList.length}: "${section.label}" #${clip.clipIndex + 1}`)
 
-            if (!imageDataUrl) {
-              addLog(`⚠️ "${section.label}" nemá obrázek — přeskakuji`)
-              return { ...clip, status: 'failed' as const, error: 'Chybí obrázek' }
-            }
+        if (!imageDataUrl) {
+          addLog(`⚠️ "${section.label}" nemá obrázek — přeskakuji`)
+          startedClips[i] = { ...clip, status: 'failed' as const, error: 'Chybí obrázek' }
+          setClips([...startedClips])
+          continue
+        }
 
-            const res = await fetch('/api/start-video', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageDataUrl, prompt, duration: Math.max(5, Math.round(clip.duration)) }),
-            })
-            const data = await res.json()
+        const res = await fetch('/api/start-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageDataUrl, prompt, duration: Math.max(5, Math.round(clip.duration)) }),
+        })
+        const data = await res.json()
 
-            if (data.predictionId) {
-              addLog(`▶ "${section.label}" #${clip.clipIndex + 1} — spuštěn`)
-              return { ...clip, predictionId: data.predictionId, status: 'starting' as const }
-            }
-            addLog(`✗ "${section.label}" #${clip.clipIndex + 1} — chyba spouštění`)
-            return { ...clip, status: 'failed' as const, error: data.error || 'Start failed' }
-          })
-        )
-
-        // Merge batch results into startedClips
-        for (const result of results) {
-          const idx = startedClips.findIndex(c => c.id === result.id)
-          if (idx !== -1) startedClips[idx] = result
+        if (data.predictionId) {
+          addLog(`▶ "${section.label}" #${clip.clipIndex + 1} — spuštěn`)
+          startedClips[i] = { ...clip, predictionId: data.predictionId, status: 'starting' as const }
+        } else {
+          addLog(`✗ "${section.label}" #${clip.clipIndex + 1} — chyba spouštění`)
+          startedClips[i] = { ...clip, status: 'failed' as const, error: data.error || 'Start failed' }
         }
         setClips([...startedClips])
       }
